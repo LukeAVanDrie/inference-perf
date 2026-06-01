@@ -754,7 +754,7 @@ class ReportGenerator:
             for label_keys in report_config.request_lifecycle.group_by_labels:
                 if not label_keys:
                     continue
-                
+
                 slices: dict[tuple[str, ...], List[RequestLifecycleMetric]] = defaultdict(list)
                 for metric in request_metrics:
                     val_list = []
@@ -766,11 +766,11 @@ class ReportGenerator:
                                 val = "default"
                         val_list.append(str(val))
                     slices[tuple(val_list)].append(metric)
-                
+
                 for val_tuple, slice_metrics in slices.items():
                     if not slice_metrics:
                         continue
-                    
+
                     summary = summarize_requests(
                         slice_metrics,
                         percentiles,
@@ -778,8 +778,8 @@ class ReportGenerator:
                         tokenizer=tokenizer,
                     )
                     summary_dict = summary.model_dump()
-                    summary_dict["labels"] = {k: v for k, v in zip(label_keys, val_tuple)}
-                    
+                    summary_dict["labels"] = {k: v for k, v in zip(label_keys, val_tuple, strict=True)}
+
                     val_str = "_".join(val_tuple)
                     report_file = ReportFile(
                         name=f"summary_labels_{val_str}_lifecycle_metrics",

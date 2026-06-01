@@ -1,0 +1,44 @@
+api:
+  type: chat
+  streaming: true
+
+server:
+  type: mock
+  model_name: "mock-model"
+  base_url: "http://localhost:8000"
+
+tokenizer:
+  pretrained_model_name_or_path: "gpt2"
+
+data:
+  type: otel_trace_replay
+  otel_trace_replay:
+    trace_directory: "/tmp/annotated_traces"
+    # Map OTel span attributes to custom HTTP headers
+    attribute_to_header_map:
+      priority: "X-Inference-Priority"
+      tenant_id: "X-Inference-Tenant-ID"
+    # Map OTel span attributes to internal reporting labels
+    attribute_to_label_map:
+      priority: "priority"
+      tenant_id: "tenant"
+
+load:
+  type: trace_session_replay
+  stages:
+    - concurrent_sessions: 5
+      # Replay the entire corpus
+  worker_max_concurrency: 50
+
+report:
+  request_lifecycle:
+    summary: true
+    per_stage: true
+    # Slice performance report by joint priority x tenant combinations
+    group_by_labels:
+      - ["priority", "tenant"]
+  goodput:
+    # Define performance constraints to measure Goodput against
+    constraints:
+      ttft: 0.050  # TTFT must be under 50ms
+      tpot: 0.020  # TPOT must be under 20ms

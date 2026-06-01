@@ -62,16 +62,24 @@ class MockModelServerClient(ModelServerClient):
                     request_metrics=RequestMetrics(text=Text(input_tokens=0)),
                     lora_adapter=lora_adapter,
                 )
+                if data.labels:
+                    info.labels = data.labels
+
                 data.on_completion(info)
+
+                metric_info = InferenceInfo(
+                    request_metrics=RequestMetrics(text=Text(input_tokens=0)),
+                    response_metrics=UnaryResponseMetrics(output_tokens=0),
+                    lora_adapter=lora_adapter,
+                )
+                if data.labels:
+                    metric_info.labels = data.labels
+
                 self.metrics_collector.record_metric(
                     RequestLifecycleMetric(
                         stage_id=stage_id,
                         request_data=str(await data.to_request_body(effective_model_name, 3, False, False)),
-                        info=InferenceInfo(
-                            request_metrics=RequestMetrics(text=Text(input_tokens=0)),
-                            response_metrics=UnaryResponseMetrics(output_tokens=0),
-                            lora_adapter=lora_adapter,
-                        ),
+                        info=metric_info,
                         error=None,
                         start_time=start,
                         end_time=time.perf_counter(),
@@ -80,15 +88,19 @@ class MockModelServerClient(ModelServerClient):
                 )
         except asyncio.exceptions.TimeoutError as e:
             logger.debug("Request timedout after %f seconds", self.timeout)
+            metric_info = InferenceInfo(
+                request_metrics=RequestMetrics(text=Text(input_tokens=0)),
+                response_metrics=UnaryResponseMetrics(output_tokens=0),
+                lora_adapter=lora_adapter,
+            )
+            if data.labels:
+                metric_info.labels = data.labels
+
             self.metrics_collector.record_metric(
                 RequestLifecycleMetric(
                     stage_id=stage_id,
-                    request_data=str(data.to_request_body(effective_model_name, 3, False, False)),
-                    info=InferenceInfo(
-                        request_metrics=RequestMetrics(text=Text(input_tokens=0)),
-                        response_metrics=UnaryResponseMetrics(output_tokens=0),
-                        lora_adapter=lora_adapter,
-                    ),
+                    request_data=str(await data.to_request_body(effective_model_name, 3, False, False)),
+                    info=metric_info,
                     error=ErrorResponseInfo(
                         error_msg=str(e),
                         error_type=type(e).__name__,

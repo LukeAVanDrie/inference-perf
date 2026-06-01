@@ -1,7 +1,9 @@
 import os
+
 os.environ["COLUMNS"] = "150"
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 # Copyright 2026 The Kubernetes Authors.
@@ -20,7 +22,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 import pytest
 from unittest.mock import Mock
-import asyncio
 
 from inference_perf.reportgen.base import ReportGenerator
 from inference_perf.config import Config, ReportConfig, RequestLifecycleMetricsReportConfig, SessionLifecycleReportConfig
@@ -29,6 +30,7 @@ from inference_perf.payloads import RequestMetrics, Text
 from inference_perf.metrics.request_collector import RequestMetricCollector
 from inference_perf.utils.report_file import ReportFile
 from inference_perf.utils.cli_summary import print_sliced_summary_table
+
 
 # Helper to mock a metric with labels
 def _mock_metric_with_labels(labels: dict[str, str], stage_id: int = 0) -> RequestLifecycleMetric:
@@ -47,14 +49,15 @@ def _mock_metric_with_labels(labels: dict[str, str], stage_id: int = 0) -> Reque
         error=None,
     )
 
+
 @pytest.mark.asyncio
 async def test_cartesian_metric_slicing() -> None:
     # 1. Create mocked metrics with different labels
     m1 = _mock_metric_with_labels({"priority": "premium", "tenant_id": "tenant-a"})
     m2 = _mock_metric_with_labels({"priority": "premium", "tenant_id": "tenant-a"})
     m3 = _mock_metric_with_labels({"priority": "standard", "tenant_id": "tenant-b"})
-    m4 = _mock_metric_with_labels({"priority": "standard"}) # missing tenant_id
-    m5 = _mock_metric_with_labels({"tenant_id": "tenant-c"}) # missing priority
+    m4 = _mock_metric_with_labels({"priority": "standard"})  # missing tenant_id
+    m5 = _mock_metric_with_labels({"tenant_id": "tenant-c"})  # missing priority
 
     metrics = [m1, m2, m3, m4, m5]
 
@@ -66,14 +69,14 @@ async def test_cartesian_metric_slicing() -> None:
     config = Config()
     report_config = ReportConfig(
         request_lifecycle=RequestLifecycleMetricsReportConfig(
-            summary=False, # disable main summary to focus on slices
+            summary=False,  # disable main summary to focus on slices
             per_stage=False,
             per_request=False,
             per_adapter=False,
-            group_by_labels=[["priority", "tenant_id"]]
+            group_by_labels=[["priority", "tenant_id"]],
         ),
         prometheus=None,
-        session_lifecycle=SessionLifecycleReportConfig(summary=False, per_stage=False, per_session=False)
+        session_lifecycle=SessionLifecycleReportConfig(summary=False, per_stage=False, per_session=False),
     )
     config.report = report_config
 
@@ -94,15 +97,15 @@ async def test_cartesian_metric_slicing() -> None:
     # ("standard", "tenant-b") -> m3
     # ("standard", "default") -> m4
     # ("default", "tenant-c") -> m5
-    
+
     expected_names = {
         "summary_labels_premium_tenant-a_lifecycle_metrics",
         "summary_labels_standard_tenant-b_lifecycle_metrics",
         "summary_labels_standard_default_lifecycle_metrics",
         "summary_labels_default_tenant-c_lifecycle_metrics",
-        "config" # always generated
+        "config",  # always generated
     }
-    
+
     generated_names = {r.name for r in reports}
     assert generated_names == expected_names
 
@@ -123,7 +126,7 @@ def test_cli_summary_table_empty() -> None:
     print_sliced_summary_table(reports)
 
 
-def test_cli_summary_table_printing(capsys) -> None:
+def test_cli_summary_table_printing(capsys: pytest.CaptureFixture[str]) -> None:
     # Create some dummy sliced reports
     def _create_dummy_slice_report(labels: dict[str, str], count: int, qps: float, failed_count: int = 0) -> ReportFile:
         val_str = "_".join(labels.values())
@@ -134,14 +137,10 @@ def test_cli_summary_table_printing(capsys) -> None:
             "successes": {
                 "count": success_count,
                 "throughput": {"requests_per_sec": qps},
-                "latency": {
-                    "time_to_first_token": {"mean": 0.045, "p90": 0.090}
-                },
-                "goodput_metrics": {"goodput_percentage": 98.5}
+                "latency": {"time_to_first_token": {"mean": 0.045, "p90": 0.090}},
+                "goodput_metrics": {"goodput_percentage": 98.5},
             },
-            "failures": {
-                "count": failed_count
-            }
+            "failures": {"count": failed_count},
         }
         return ReportFile(name=f"summary_labels_{val_str}_lifecycle_metrics", contents=contents)
 
@@ -152,30 +151,29 @@ def test_cli_summary_table_printing(capsys) -> None:
 
     # Call printing
     print_sliced_summary_table(reports)
-    
     # Capture stdout
     captured = capsys.readouterr()
     assert "Sliced Performance Summary" in captured.out
     assert "Error %" in captured.out
-    
+
     assert "priority=premium" in captured.out
     assert "tenant_id=tenant-a" in captured.out
     assert "100" in captured.out
-    assert "10.5" in captured.out 
+    assert "10.5" in captured.out
     assert "0.0%" in captured.out
-    
+
     assert "priority=standard" in captured.out
     assert "tenant_id=tenant-b" in captured.out
     assert "50" in captured.out
-    assert "5.2" in captured.out 
+    assert "5.2" in captured.out
     assert "10.0%" in captured.out
-    
+
     assert "45.0" in captured.out
     assert "90.0" in captured.out
     assert "98.5%" in captured.out
 
 
-def test_cli_summary_table_truncation(capsys) -> None:
+def test_cli_summary_table_truncation(capsys: pytest.CaptureFixture[str]) -> None:
     # Create 20 dummy sliced reports (exceeding 15)
     def _create_dummy_slice_report(labels: dict[str, str], count: int) -> ReportFile:
         val_str = "_".join(labels.values())
@@ -185,13 +183,9 @@ def test_cli_summary_table_truncation(capsys) -> None:
             "successes": {
                 "count": count,
                 "throughput": {"requests_per_sec": 1.0},
-                "latency": {
-                    "time_to_first_token": {"mean": 0.05, "p90": 0.1}
-                }
+                "latency": {"time_to_first_token": {"mean": 0.05, "p90": 0.1}},
             },
-            "failures": {
-                "count": 0
-            }
+            "failures": {"count": 0},
         }
         return ReportFile(name=f"summary_labels_{val_str}_lifecycle_metrics", contents=contents)
 
@@ -206,11 +200,10 @@ def test_cli_summary_table_truncation(capsys) -> None:
     # Capture stdout
     captured = capsys.readouterr()
     assert "Sliced Performance Summary" in captured.out
-    
     # Should print only top 15 (t0 to t14)
     for i in range(15):
         assert f"tenant=t{i}" in captured.out
-    
+
     # Should NOT print t15 to t19
     for i in range(15, 20):
         assert f"tenant=t{i}" not in captured.out

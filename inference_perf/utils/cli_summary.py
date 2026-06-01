@@ -444,7 +444,12 @@ def print_sliced_summary_table(reports: List[ReportFile]) -> None:
     total_slices = len(sliced_reports)
 
     def get_volume(report: ReportFile) -> int:
-        return report.contents.get("load_summary", {}).get("count", 0)
+        if not isinstance(report.contents, dict):
+            return 0
+        load_summary = report.contents.get("load_summary")
+        if not isinstance(load_summary, dict):
+            return 0
+        return int(load_summary.get("count", 0))
 
     sliced_reports.sort(key=get_volume, reverse=True)
 
