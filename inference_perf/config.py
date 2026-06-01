@@ -647,6 +647,7 @@ class RequestLifecycleMetricsReportConfig(BaseModel):
     per_adapter: Optional[bool] = True
     per_adapter_stage: Optional[bool] = False
     percentiles: List[float] = [0.1, 1, 5, 10, 25, 50, 75, 90, 95, 99, 99.9]
+    group_by_labels: Optional[List[List[str]]] = None
 
 
 class PrometheusMetricsReportConfig(BaseModel):

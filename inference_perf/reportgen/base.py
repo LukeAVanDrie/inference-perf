@@ -749,6 +749,44 @@ class ReportGenerator:
                 )
                 lifecycle_reports.append(report_file)
 
+        # Cartesian Metric Slicing
+        if report_config.request_lifecycle.group_by_labels:
+            for label_keys in report_config.request_lifecycle.group_by_labels:
+                if not label_keys:
+                    continue
+                
+                slices: dict[tuple[str, ...], List[RequestLifecycleMetric]] = defaultdict(list)
+                for metric in request_metrics:
+                    val_list = []
+                    for k in label_keys:
+                        val = "default"
+                        if metric.info is not None and metric.info.labels is not None:
+                            val = metric.info.labels.get(k, "default")
+                            if val is None:
+                                val = "default"
+                        val_list.append(str(val))
+                    slices[tuple(val_list)].append(metric)
+                
+                for val_tuple, slice_metrics in slices.items():
+                    if not slice_metrics:
+                        continue
+                    
+                    summary = summarize_requests(
+                        slice_metrics,
+                        percentiles,
+                        goodput_config=report_config.goodput,
+                        tokenizer=tokenizer,
+                    )
+                    summary_dict = summary.model_dump()
+                    summary_dict["labels"] = {k: v for k, v in zip(label_keys, val_tuple)}
+                    
+                    val_str = "_".join(val_tuple)
+                    report_file = ReportFile(
+                        name=f"summary_labels_{val_str}_lifecycle_metrics",
+                        contents=summary_dict,
+                    )
+                    lifecycle_reports.append(report_file)
+
         if report_config.prometheus:
             lifecycle_reports.extend(self.generate_prometheus_metrics_report(runtime_parameters, report_config.prometheus))
 

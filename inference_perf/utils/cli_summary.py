@@ -282,6 +282,9 @@ def print_summary_table(reports: List[ReportFile]) -> None:
     # Print session-level metrics if available
     print_session_summary_tables(reports)
 
+    # Print multi-tenant slices summary
+    print_multi_tenant_summary_table(reports)
+
 
 def print_session_summary_tables(reports: List[ReportFile]) -> None:
     """Print session-level summary tables for session-based data generators."""
@@ -425,3 +428,101 @@ def print_session_summary_tables(reports: List[ReportFile]) -> None:
     console.print(session_summary_table)
     console.print(session_duration_table)
     console.print(session_tokens_table)
+
+
+def print_multi_tenant_summary_table(reports: List[ReportFile]) -> None:
+    """Identify and print multi-tenant sliced reports in a beautiful Console Table."""
+    sliced_reports: List[ReportFile] = []
+    for r in reports:
+        if r.name.startswith("summary_labels_") and r.name.endswith("_lifecycle_metrics"):
+            sliced_reports.append(r)
+
+    if not sliced_reports:
+        return
+
+    # Clutter Prevention: If > 15 slices, sort by request volume descending and keep top 15
+    total_slices = len(sliced_reports)
+
+    def get_volume(report: ReportFile) -> int:
+        return report.contents.get("load_summary", {}).get("count", 0)
+
+    sliced_reports.sort(key=get_volume, reverse=True)
+
+    display_reports = sliced_reports
+    truncated = False
+    remaining_count = 0
+    if total_slices > 15:
+        display_reports = sliced_reports[:15]
+        truncated = True
+        remaining_count = total_slices - 15
+
+    console = Console()
+
+    table = Table(
+        title="[bold magenta]Multi-Tenant Slices Summary[/bold magenta]",
+        show_header=True,
+        header_style="bold cyan",
+    )
+
+    table.add_column("Labels", justify="left")
+    table.add_column("Reqs", justify="right")
+    table.add_column("QPS", justify="right")
+    table.add_column("Error %", justify="right")
+    table.add_column("Mean TTFT", justify="right")
+    table.add_column("P90 TTFT", justify="right")
+    table.add_column("Goodput %", justify="right")
+
+    for report in display_reports:
+        contents = report.contents
+        labels_dict = contents.get("labels", {})
+
+        # Format Labels: priority=premium, tenant_id=tenant-a
+        labels_str = ", ".join(f"{k}={v}" for k, v in labels_dict.items())
+
+        reqs = contents.get("load_summary", {}).get("count", 0)
+
+        successes = contents.get("successes", {})
+        qps = successes.get("throughput", {}).get("requests_per_sec", 0.0)
+
+        failures = contents.get("failures", {})
+        success_count = successes.get("count", 0)
+        failed_count = failures.get("count", 0)
+        total_count = success_count + failed_count
+        error_rate = failed_count / total_count if total_count > 0 else 0.0
+        error_rate_pct = error_rate * 100.0
+        error_color = "red" if error_rate > 0.05 else ("yellow" if error_rate > 0 else "green")
+        error_str = f"[{error_color}]{error_rate_pct:0.1f}%[/]"
+
+        # TTFT
+        ttft = successes.get("latency", {}).get("time_to_first_token", {})
+        mean_ttft_str = "-"
+        p90_ttft_str = "-"
+        if ttft:
+            mean_ttft = ttft.get("mean")
+            p90_ttft = ttft.get("p90")
+            if mean_ttft is not None:
+                mean_ttft_str = f"{mean_ttft * 1000.0:.1f}"
+            if p90_ttft is not None:
+                p90_ttft_str = f"{p90_ttft * 1000.0:.1f}"
+
+        # Goodput
+        goodput_metrics = successes.get("goodput_metrics")
+        goodput_str = "-"
+        if goodput_metrics:
+            goodput_pct = goodput_metrics.get("goodput_percentage")
+            if goodput_pct is not None:
+                goodput_str = f"{goodput_pct:.1f}%"
+
+        table.add_row(
+            labels_str,
+            str(reqs),
+            f"{qps:.1f}",  # Formatted to 1 decimal place for visual consistency
+            error_str,
+            mean_ttft_str,
+            p90_ttft_str,
+            goodput_str,
+        )
+
+    console.print(table)
+    if truncated:
+        console.print(f"... and {remaining_count} more slices (see output JSON files for full details)")
