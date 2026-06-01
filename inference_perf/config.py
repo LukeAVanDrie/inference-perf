@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -373,6 +373,10 @@ class OTelTraceReplayConfig(SessionReplayConfig):
             "  - String: 'username/dataset-name'\n"
             "  - Dict: {'path': 'username/dataset-name', 'revision': 'main', 'split': 'train'}"
         ),
+    )
+    attribute_to_header_map: Optional[Dict[str, str]] = Field(None, description="Map OTel span attributes to HTTP headers")
+    attribute_to_label_map: Optional[Dict[str, str]] = Field(
+        None, description="Map OTel span attributes to metrics reporting labels"
     )
 
     @model_validator(mode="after")
