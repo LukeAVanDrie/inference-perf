@@ -282,8 +282,8 @@ def print_summary_table(reports: List[ReportFile]) -> None:
     # Print session-level metrics if available
     print_session_summary_tables(reports)
 
-    # Print multi-tenant slices summary
-    print_multi_tenant_summary_table(reports)
+    # Print sliced performance summary
+    print_sliced_summary_table(reports)
 
 
 def print_session_summary_tables(reports: List[ReportFile]) -> None:
@@ -430,7 +430,7 @@ def print_session_summary_tables(reports: List[ReportFile]) -> None:
     console.print(session_tokens_table)
 
 
-def print_multi_tenant_summary_table(reports: List[ReportFile]) -> None:
+def print_sliced_summary_table(reports: List[ReportFile]) -> None:
     """Identify and print multi-tenant sliced reports in a beautiful Console Table."""
     sliced_reports: List[ReportFile] = []
     for r in reports:
@@ -459,7 +459,7 @@ def print_multi_tenant_summary_table(reports: List[ReportFile]) -> None:
     console = Console()
 
     table = Table(
-        title="[bold magenta]Multi-Tenant Slices Summary[/bold magenta]",
+        title="[bold magenta]Sliced Performance Summary[/bold magenta]",
         show_header=True,
         header_style="bold cyan",
     )

@@ -28,7 +28,7 @@ from inference_perf.apis.base import RequestLifecycleMetric, InferenceInfo, Stre
 from inference_perf.payloads import RequestMetrics, Text
 from inference_perf.metrics.request_collector import RequestMetricCollector
 from inference_perf.utils.report_file import ReportFile
-from inference_perf.utils.cli_summary import print_multi_tenant_summary_table
+from inference_perf.utils.cli_summary import print_sliced_summary_table
 
 # Helper to mock a metric with labels
 def _mock_metric_with_labels(labels: dict[str, str], stage_id: int = 0) -> RequestLifecycleMetric:
@@ -120,7 +120,7 @@ async def test_cartesian_metric_slicing() -> None:
 def test_cli_summary_table_empty() -> None:
     # If no sliced reports, should return silently (no error, no table printed)
     reports = [ReportFile(name="config", contents={})]
-    print_multi_tenant_summary_table(reports)
+    print_sliced_summary_table(reports)
 
 
 def test_cli_summary_table_printing(capsys) -> None:
@@ -151,11 +151,11 @@ def test_cli_summary_table_printing(capsys) -> None:
     ]
 
     # Call printing
-    print_multi_tenant_summary_table(reports)
+    print_sliced_summary_table(reports)
     
     # Capture stdout
     captured = capsys.readouterr()
-    assert "Multi-Tenant Slices Summary" in captured.out
+    assert "Sliced Performance Summary" in captured.out
     assert "Error %" in captured.out
     
     assert "priority=premium" in captured.out
@@ -201,11 +201,11 @@ def test_cli_summary_table_truncation(capsys) -> None:
         reports.append(_create_dummy_slice_report({"tenant": f"t{i}"}, count))
 
     # Call printing
-    print_multi_tenant_summary_table(reports)
+    print_sliced_summary_table(reports)
     
     # Capture stdout
     captured = capsys.readouterr()
-    assert "Multi-Tenant Slices Summary" in captured.out
+    assert "Sliced Performance Summary" in captured.out
     
     # Should print only top 15 (t0 to t14)
     for i in range(15):
